@@ -1,0 +1,141 @@
+{% extends 'tasks/base.html' %}
+{% block title %}المساعد الذكي{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="chat-container shadow-sm">
+            <div class="chat-header">
+                🤖 المساعد الذكي
+            </div>
+
+            <div class="chat-body" id="chatBody">
+                <div class="message bot-message">
+                    مرحباً {{ user.username }}! أنا مساعدك الذكي، اسألني عن مهامك وأنا بجاوبك 😊
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <input type="text" id="userInput" class="form-control" placeholder="اكتب سؤالك هنا...">
+                <button id="sendBtn" class="btn btn-primary">إرسال</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .chat-container {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        height: 70vh;
+    }
+    .chat-header {
+        background: #4f46e5;
+        color: white;
+        padding: 15px 20px;
+        font-weight: bold;
+    }
+    .chat-body {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto;
+        background: #f0f2f5;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .message {
+        max-width: 70%;
+        padding: 10px 15px;
+        border-radius: 15px;
+        line-height: 1.6;
+        font-size: 14px;
+    }
+    .bot-message {
+        background: white;
+        align-self: flex-start;
+        border-bottom-right-radius: 4px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    .user-message {
+        background: #4f46e5;
+        color: white;
+        align-self: flex-end;
+        border-bottom-left-radius: 4px;
+    }
+    .chat-input-area {
+        display: flex;
+        gap: 10px;
+        padding: 15px;
+        background: white;
+        border-top: 1px solid #eee;
+    }
+    .typing-indicator {
+        align-self: flex-start;
+        color: #888;
+        font-size: 13px;
+        padding: 5px 15px;
+    }
+</style>
+
+<script>
+    const chatBody = document.getElementById('chatBody');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+
+    function addMessage(text, sender) {
+        const div = document.createElement('div');
+        div.className = `message ${sender === 'user' ? 'user-message' : 'bot-message'}`;
+        div.textContent = text;
+        chatBody.appendChild(div);
+        chatBody.scrollTop = chatBody.scrollHeight;
+    }
+
+    async function sendMessage() {
+        const message = userInput.value.trim();
+        if (!message) return;
+
+        addMessage(message, 'user');
+        userInput.value = '';
+
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'typing-indicator';
+        typingDiv.id = 'typingIndicator';
+        typingDiv.textContent = 'جاري الكتابة...';
+        chatBody.appendChild(typingDiv);
+        chatBody.scrollTop = chatBody.scrollHeight;
+
+        try {
+            const response = await fetch("{% url 'chatbot_api' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({ message: message }),
+            });
+            const data = await response.json();
+
+            document.getElementById('typingIndicator').remove();
+            addMessage(data.reply, 'bot');
+        } catch (error) {
+            document.getElementById('typingIndicator').remove();
+            addMessage('صار خطأ بالاتصال، حاول من جديد', 'bot');
+        }
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    userInput.addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+</script>
+{% endblock %}
